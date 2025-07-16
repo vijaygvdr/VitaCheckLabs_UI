@@ -1,53 +1,74 @@
-import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { Link, useLocation } from 'react-router-dom';
-import { LocalHospital } from '@mui/icons-material';
+import { AppBar, Toolbar, Box, Container } from '@mui/material';
+import { Link } from 'react-router-dom';
+import Logo from './Logo';
+import Navigation from './Navigation';
+import UserProfile from './UserProfile';
 
-const Header = () => {
-  const location = useLocation();
+interface HeaderProps {
+  isAuthenticated?: boolean;
+  user?: {
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  onLogin?: () => void;
+  onRegister?: () => void;
+  onLogout?: () => void;
+  onSettings?: () => void;
+}
 
+const Header = ({
+  isAuthenticated = false,
+  user,
+  onLogin,
+  onRegister,
+  onLogout,
+  onSettings
+}: HeaderProps) => {
   return (
-    <AppBar position="static" sx={{ backgroundColor: 'primary.main' }}>
-      <Toolbar>
-        <LocalHospital sx={{ mr: 2 }} />
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          VitaCheckLabs
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            color="inherit"
+    <AppBar 
+      position="static" 
+      sx={{ 
+        backgroundColor: 'primary.main',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      }}
+    >
+      <Container maxWidth="lg">
+        <Toolbar sx={{ px: { xs: 0, sm: 2 } }}>
+          <Box
             component={Link}
-            to="/lab-tests"
+            to="/"
             sx={{
               textDecoration: 'none',
-              backgroundColor: location.pathname === '/lab-tests' ? 'rgba(255,255,255,0.1)' : 'transparent',
+              color: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              mr: 4,
+              '&:hover': {
+                opacity: 0.8,
+              },
+              transition: 'opacity 0.2s ease-in-out',
             }}
           >
-            Lab Tests
-          </Button>
-          <Button
-            color="inherit"
-            component={Link}
-            to="/reports"
-            sx={{
-              textDecoration: 'none',
-              backgroundColor: location.pathname === '/reports' ? 'rgba(255,255,255,0.1)' : 'transparent',
-            }}
-          >
-            Reports
-          </Button>
-          <Button
-            color="inherit"
-            component={Link}
-            to="/about"
-            sx={{
-              textDecoration: 'none',
-              backgroundColor: location.pathname === '/about' ? 'rgba(255,255,255,0.1)' : 'transparent',
-            }}
-          >
-            About
-          </Button>
-        </Box>
-      </Toolbar>
+            <Logo variant="full" size="medium" color="inherit" />
+          </Box>
+          
+          <Box sx={{ flexGrow: 1 }} />
+          
+          <Navigation />
+          
+          <Box sx={{ ml: 2 }}>
+            <UserProfile
+              isAuthenticated={isAuthenticated}
+              user={user}
+              onLogin={onLogin}
+              onRegister={onRegister}
+              onLogout={onLogout}
+              onSettings={onSettings}
+            />
+          </Box>
+        </Toolbar>
+      </Container>
     </AppBar>
   );
 };
