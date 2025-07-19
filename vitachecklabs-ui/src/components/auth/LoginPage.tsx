@@ -4,25 +4,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Box,
-  Card,
-  CardContent,
   TextField,
   Button,
   Typography,
   Alert,
   IconButton,
   InputAdornment,
-  Checkbox,
-  FormControlLabel,
-  Divider,
+  Container,
+  Grid,
   CircularProgress,
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
-  Login as LoginIcon,
   Email,
-  Lock,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -35,13 +30,12 @@ import { errorHandler } from '../../services/api';
 const loginSchema = yup.object({
   username: yup
     .string()
-    .required('Username or email is required')
+    .required('Username is required')
     .min(3, 'Username must be at least 3 characters'),
   password: yup
     .string()
     .required('Password is required')
     .min(6, 'Password must be at least 6 characters'),
-  rememberMe: yup.boolean(),
 });
 
 type LoginFormData = yup.InferType<typeof loginSchema>;
@@ -52,7 +46,7 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ 
-  redirectTo = '/lab-tests', 
+  redirectTo = '/home', 
   onLoginSuccess 
 }) => {
   const navigate = useNavigate();
@@ -60,9 +54,6 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const { login, state: authState, clearError } = useAuth();
   
   const [showPassword, setShowPassword] = useState(false);
-  const [loginAttempts, setLoginAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockoutTime, setLockoutTime] = useState(0);
 
   // Get redirect path from location state or default
   const from = (location.state as any)?.from?.pathname || redirectTo;
@@ -79,23 +70,8 @@ const LoginPage: React.FC<LoginPageProps> = ({
     defaultValues: {
       username: '',
       password: '',
-      rememberMe: false,
     },
   });
-
-  // Handle lockout timer
-  useEffect(() => {
-    if (lockoutTime > 0) {
-      const timer = setTimeout(() => {
-        setLockoutTime(lockoutTime - 1);
-        if (lockoutTime === 1) {
-          setIsLocked(false);
-          setLoginAttempts(0);
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [lockoutTime]);
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -111,8 +87,6 @@ const LoginPage: React.FC<LoginPageProps> = ({
 
   // Handle form submission
   const onSubmit = async (data: LoginFormData) => {
-    if (isLocked) return;
-
     try {
       const loginData: UserLogin = {
         username: data.username,
@@ -121,36 +95,18 @@ const LoginPage: React.FC<LoginPageProps> = ({
 
       const user = await login(loginData);
       
-      // Store remember me preference
-      if (data.rememberMe) {
-        localStorage.setItem('vitacheck_remember_me', 'true');
-      } else {
-        localStorage.removeItem('vitacheck_remember_me');
-      }
-
-      // Reset form and attempts
+      // Reset form
       reset();
-      setLoginAttempts(0);
       
       // Call success callback
       if (onLoginSuccess) {
         onLoginSuccess(user);
       }
 
-      // Navigate to intended destination
-      navigate(from, { replace: true });
+      // Navigate to home page after successful login
+      navigate('/home', { replace: true });
       
     } catch (error: any) {
-      // Handle failed login attempts
-      const newAttempts = loginAttempts + 1;
-      setLoginAttempts(newAttempts);
-
-      // Lock account after 5 failed attempts
-      if (newAttempts >= 5) {
-        setIsLocked(true);
-        setLockoutTime(300); // 5 minutes lockout
-      }
-
       // Handle specific error types
       if (errorHandler.isAuthError(error)) {
         setError('username', { 
@@ -178,227 +134,299 @@ const LoginPage: React.FC<LoginPageProps> = ({
     setShowPassword(!showPassword);
   };
 
-  // Handle forgot password
-  const handleForgotPassword = () => {
-    navigate('/auth/forgot-password');
-  };
-
   // Handle register navigation
   const handleRegisterNavigation = () => {
     navigate('/auth/register', { state: { from: location.state?.from } });
-  };
-
-  // Format lockout time
-  const formatLockoutTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
+        height: '100vh',
+        width: '100vw',
+        backgroundColor: '#f8f9fa',
         display: 'flex',
-        alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'background.default',
-        padding: 2,
+        alignItems: 'center',
+        margin: 0,
+        padding: 0
       }}
     >
-      <Card
-        sx={{
-          maxWidth: 400,
-          width: '100%',
-          boxShadow: 3,
-        }}
-      >
-        <CardContent sx={{ padding: 4 }}>
-          {/* Header */}
-          <Box sx={{ textAlign: 'center', marginBottom: 3 }}>
-            <LoginIcon 
-              sx={{ 
-                fontSize: 48, 
-                color: 'primary.main', 
-                marginBottom: 1 
-              }} 
+      <Grid container sx={{ height: '100%', width: '100%', maxWidth: '1200px' }}>
+        {/* Left Side - Branding */}
+        <Grid 
+          item 
+          xs={12} 
+          md={6} 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'center',
+            alignItems: 'center',
+            px: { xs: 4, md: 6 },
+            textAlign: 'center',
+            backgroundColor: '#f8f9fa'
+          }}
+        >
+          {/* Logo */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4 }}>
+            <Box
+              component="img"
+              src="/images/VitaCheckLabsIcon.png"
+              alt="VitaCheckLabs"
+              sx={{
+                width: 40,
+                height: 40,
+                mr: 2,
+              }}
             />
-            <Typography variant="h4" component="h1" gutterBottom>
-              Welcome Back
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Sign in to your VitaCheckLabs account
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1f2937' }}>
+              VitaCheckLabs
             </Typography>
           </Box>
 
-          {/* Error Display */}
-          {authState.error && (
-            <Alert 
-              severity="error" 
-              sx={{ marginBottom: 2 }}
-              onClose={clearError}
-            >
-              {errorHandler.getErrorMessage(authState.error)}
-            </Alert>
-          )}
+          <Typography 
+            variant="h2" 
+            sx={{ 
+              fontWeight: 'bold',
+              color: '#1f2937',
+              mb: 3,
+              fontSize: { xs: '2rem', md: '3rem' }
+            }}
+          >
+            Medical Lab Tests
+          </Typography>
 
-          {/* Lockout Warning */}
-          {isLocked && (
-            <Alert severity="warning" sx={{ marginBottom: 2 }}>
-              Account temporarily locked due to multiple failed attempts. 
-              Please try again in {formatLockoutTime(lockoutTime)}.
-            </Alert>
-          )}
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              color: '#6b7280',
+              mb: 4,
+              maxWidth: '400px'
+            }}
+          >
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
+            sed do eiusmod tempor incididunt ut labore et dolore magna 
+            aliqua.
+          </Typography>
 
-          {/* Login Attempts Warning */}
-          {loginAttempts >= 3 && !isLocked && (
-            <Alert severity="warning" sx={{ marginBottom: 2 }}>
-              {5 - loginAttempts} attempts remaining before account lockout.
-            </Alert>
-          )}
-
-          {/* Login Form */}
-          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-            {/* Username Field */}
-            <Controller
-              name="username"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Username or Email"
-                  variant="outlined"
-                  margin="normal"
-                  error={!!errors.username}
-                  helperText={errors.username?.message}
-                  disabled={isSubmitting || isLocked}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Email color="action" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  autoComplete="username"
-                  autoFocus
-                />
-              )}
+          {/* Medical Illustration */}
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: '400px',
+              height: '300px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Box
+              component="img"
+              src="/images/Login_Image.png"
+              alt="Medical Lab Tests"
+              sx={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+              }}
             />
+          </Box>
+        </Grid>
 
-            {/* Password Field */}
-            <Controller
-              name="password"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  variant="outlined"
-                  margin="normal"
-                  error={!!errors.password}
-                  helperText={errors.password?.message}
-                  disabled={isSubmitting || isLocked}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Lock color="action" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={handleTogglePasswordVisibility}
-                          edge="end"
-                          disabled={isSubmitting || isLocked}
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                  autoComplete="current-password"
-                />
-              )}
-            />
-
-            {/* Remember Me */}
-            <Controller
-              name="rememberMe"
-              control={control}
-              render={({ field }) => (
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      {...field}
-                      checked={field.value}
-                      disabled={isSubmitting || isLocked}
-                      color="primary"
-                    />
-                  }
-                  label="Remember me"
-                  sx={{ marginTop: 1, marginBottom: 2 }}
-                />
-              )}
-            />
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={isSubmitting || isLocked}
-              sx={{ marginTop: 2, marginBottom: 2 }}
-              startIcon={
-                isSubmitting ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  <LoginIcon />
-                )
-              }
-            >
-              {isSubmitting ? 'Signing In...' : 'Sign In'}
-            </Button>
-
-            {/* Forgot Password Link */}
-            <Box sx={{ textAlign: 'center', marginBottom: 2 }}>
-              <Button
-                variant="text"
-                onClick={handleForgotPassword}
-                disabled={isSubmitting}
-                size="small"
+        {/* Right Side - Login Form */}
+        <Grid 
+          item 
+          xs={12} 
+          md={6} 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'center',
+            alignItems: 'center',
+            px: { xs: 4, md: 6 },
+            backgroundColor: '#f8f9fa'
+          }}
+        >
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: '400px',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              p: 4,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+            }}
+          >
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: '#1f2937',
+                  mb: 4,
+                  textAlign: 'center'
+                }}
               >
-                Forgot your password?
-              </Button>
-            </Box>
-
-            <Divider sx={{ marginY: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                OR
+                Log In
               </Typography>
-            </Divider>
 
-            {/* Register Link */}
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Don't have an account?{' '}
-                <Button
-                  variant="text"
-                  onClick={handleRegisterNavigation}
-                  disabled={isSubmitting}
-                  size="small"
-                  sx={{ textTransform: 'none' }}
+              {/* Error Display */}
+              {authState.error && (
+                <Alert 
+                  severity="error" 
+                  sx={{ marginBottom: 2 }}
+                  onClose={clearError}
                 >
-                  Create Account
+                  {errorHandler.getErrorMessage(authState.error)}
+                </Alert>
+              )}
+
+              {/* Login Form */}
+              <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+                {/* Username Field */}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Username
+                </Typography>
+                <Controller
+                  name="username"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      placeholder="Enter your username"
+                      variant="outlined"
+                      error={!!errors.username}
+                      helperText={errors.username?.message}
+                      disabled={isSubmitting}
+                      sx={{ 
+                        mb: 3,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '8px',
+                          backgroundColor: '#f8f9fa'
+                        }
+                      }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Email color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
+                      autoComplete="username"
+                      autoFocus
+                    />
+                  )}
+                />
+
+                {/* Password Field */}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Password
+                </Typography>
+                <Controller
+                  name="password"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      placeholder="••••••••"
+                      type={showPassword ? 'text' : 'password'}
+                      variant="outlined"
+                      error={!!errors.password}
+                      helperText={errors.password?.message}
+                      disabled={isSubmitting}
+                      sx={{ 
+                        mb: 2,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '8px',
+                          backgroundColor: '#f8f9fa'
+                        }
+                      }}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={handleTogglePasswordVisibility}
+                              edge="end"
+                              disabled={isSubmitting}
+                            >
+                              {showPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                      autoComplete="current-password"
+                    />
+                  )}
+                />
+
+                <Box sx={{ textAlign: 'right', mb: 3 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: '#3b82f6', 
+                      cursor: 'pointer',
+                      '&:hover': {
+                        textDecoration: 'underline'
+                      }
+                    }}
+                  >
+                    Forgot password?
+                  </Typography>
+                </Box>
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  disabled={isSubmitting}
+                  sx={{
+                    mb: 3,
+                    py: 1.5,
+                    backgroundColor: '#3b82f6',
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    '&:hover': {
+                      backgroundColor: '#2563eb',
+                    }
+                  }}
+                  startIcon={
+                    isSubmitting ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : null
+                  }
+                >
+                  {isSubmitting ? 'Logging In...' : 'Log In'}
                 </Button>
-              </Typography>
+
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Don't have an account?{' '}
+                    <Typography
+                      component="span"
+                      sx={{ 
+                        color: '#3b82f6', 
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        '&:hover': {
+                          textDecoration: 'underline'
+                        }
+                      }}
+                      onClick={handleRegisterNavigation}
+                    >
+                      Sign Up
+                    </Typography>
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
-          </Box>
-        </CardContent>
-      </Card>
+          </Grid>
+        </Grid>
     </Box>
   );
 };

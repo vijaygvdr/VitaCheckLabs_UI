@@ -7,7 +7,6 @@ export { default as apiClient, tokenManager, apiUtils, errorHandler } from './ap
 export { default as authService } from './authService';
 export { default as labTestsService } from './labTestsService';
 export { default as reportsService } from './reportsService';
-export { default as companyService } from './companyService';
 
 // API hooks
 export * from '../hooks/useApi';
@@ -20,7 +19,6 @@ import { healthCheck } from './api';
 import { authService } from './authService';
 import { labTestsService } from './labTestsService';
 import { reportsService } from './reportsService';
-import { companyService } from './companyService';
 
 /**
  * Initialize all services and perform health checks
@@ -32,7 +30,6 @@ export const initializeServices = async (): Promise<{
     auth: boolean;
     labTests: boolean;
     reports: boolean;
-    company: boolean;
   };
 }> => {
   const services = {
@@ -40,7 +37,6 @@ export const initializeServices = async (): Promise<{
     auth: false,
     labTests: false,
     reports: false,
-    company: false,
   };
 
   try {
@@ -63,17 +59,14 @@ export const initializeServices = async (): Promise<{
       await Promise.all([
         labTestsService.preloadPopularTests(),
         reportsService.preloadUserReports(),
-        companyService.preloadCompanyData(),
       ]);
       services.labTests = true;
       services.reports = true;
-      services.company = true;
     } catch (error) {
       console.warn('Service preload failed:', error);
       // Set individual service status based on what succeeded
       services.labTests = true; // Assume success if no specific error
       services.reports = true;
-      services.company = true;
     }
 
     return {
@@ -115,7 +108,6 @@ export const getServiceStatus = async (): Promise<{
   services: {
     labTests: boolean;
     reports: boolean;
-    company: boolean;
   };
 }> => {
   const status = {
@@ -125,7 +117,6 @@ export const getServiceStatus = async (): Promise<{
     services: {
       labTests: false,
       reports: false,
-      company: false,
     },
   };
 
@@ -139,7 +130,6 @@ export const getServiceStatus = async (): Promise<{
     // Check individual services (simplified check)
     status.services.labTests = status.api;
     status.services.reports = status.api;
-    status.services.company = status.api;
 
     return status;
   } catch (error) {
@@ -152,7 +142,7 @@ export const getServiceStatus = async (): Promise<{
  * Service configuration
  */
 export const serviceConfig = {
-  apiBaseUrl: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000',
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
   apiVersion: '/api/v1',
   timeout: 30000,
   retryAttempts: 3,
@@ -307,7 +297,6 @@ export default {
   authService,
   labTestsService,
   reportsService,
-  companyService,
   initializeServices,
   clearServiceCaches,
   getServiceStatus,

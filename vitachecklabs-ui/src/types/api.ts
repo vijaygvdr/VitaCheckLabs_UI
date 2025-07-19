@@ -136,12 +136,30 @@ export interface LabTestUpdate extends Partial<LabTestCreate> {
 }
 
 export interface LabTestBooking {
-  preferred_date: string;
-  preferred_time: string;
-  is_home_collection: boolean;
-  collection_address?: string;
+  test_id: number;
+  patient_name: string;
   patient_age: number;
-  notes?: string;
+  patient_gender: string;
+  appointment_date: string; // ISO datetime string
+  home_collection: boolean;
+  address?: string;
+  phone_number: string;
+  special_instructions?: string;
+}
+
+export interface Booking {
+  id: string;
+  test_id: string;
+  test_name: string;
+  patient_name: string;
+  patient_age: number;
+  appointment_date: string;
+  home_collection: boolean;
+  address?: string;
+  phone_number: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface LabTestFilters {

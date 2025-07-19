@@ -1,6 +1,6 @@
 // Authentication Context Provider
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
 import { authService } from '../services/authService';
 import { 
   User, 
@@ -177,6 +177,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     initializeAuth();
   }, []);
 
+  // Logout function
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      dispatch({ type: 'AUTH_LOGOUT' });
+    }
+  }, []);
+
+  // Get time until token expiry
+  const getTimeUntilExpiry = useCallback((): number | null => {
+    if (!state.isAuthenticated || !state.lastActivity) return null;
+    
+    const expiryTime = new Date(state.lastActivity.getTime() + sessionTimeout * 60 * 1000);
+    const timeUntilExpiry = expiryTime.getTime() - Date.now();
+    
+    return Math.max(0, timeUntilExpiry);
+  }, [state.isAuthenticated, state.lastActivity, sessionTimeout]);
+
   // Auto-refresh token before expiry
   useEffect(() => {
     if (!autoRefresh || !state.isAuthenticated) return;
@@ -196,7 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, [state.isAuthenticated, autoRefresh]);
+  }, [state.isAuthenticated, autoRefresh, getTimeUntilExpiry, logout]);
 
   // Session timeout handling
   useEffect(() => {
@@ -207,7 +228,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }, sessionTimeout * 60 * 1000);
 
     return () => clearTimeout(timeout);
-  }, [state.lastActivity, sessionTimeout, state.isAuthenticated]);
+  }, [state.lastActivity, sessionTimeout, state.isAuthenticated, logout]);
 
   // Activity tracking
   useEffect(() => {
@@ -270,17 +291,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         payload: error as ApiError,
       });
       throw error;
-    }
-  };
-
-  // Logout function
-  const logout = async (): Promise<void> => {
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      dispatch({ type: 'AUTH_LOGOUT' });
     }
   };
 
@@ -359,23 +369,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
   };
 
-  // Get time until token expiry
-  const getTimeUntilExpiry = (): number | null => {
-    if (!state.isAuthenticated || !state.lastActivity) return null;
-    
-    const expiryTime = new Date(state.lastActivity.getTime() + sessionTimeout * 60 * 1000);
-    const timeUntilExpiry = expiryTime.getTime() - Date.now();
-    
-    return Math.max(0, timeUntilExpiry);
-  };
-
   // Check if session is expiring soon
-  const isSessionExpiring = (): boolean => {
+  const isSessionExpiring = useCallback((): boolean => {
     const timeUntilExpiry = getTimeUntilExpiry();
     if (timeUntilExpiry === null) return false;
     
     return timeUntilExpiry < warningTime * 60 * 1000;
-  };
+  }, [getTimeUntilExpiry, warningTime]);
 
   // Context value
   const contextValue: AuthContextType = {

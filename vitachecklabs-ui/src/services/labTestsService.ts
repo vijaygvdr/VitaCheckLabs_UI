@@ -14,13 +14,14 @@ import {
   LabTestFilters,
   LabTestStats,
   LabTestCategory,
+  Booking,
   PaginatedResponse,
   ApiResponse
 } from '../types/api';
 
 // Lab Tests service class
 class LabTestsService {
-  private readonly baseUrl = '/lab-tests';
+  private readonly baseUrl = '/lab-tests/';
   private readonly cachePrefix = 'lab_tests_';
 
   /**
@@ -39,17 +40,28 @@ class LabTestsService {
         }
       }
 
-      const response = await apiUtils.get<PaginatedResponse<LabTest>>(
+      console.log('Making API call to:', this.baseUrl, 'with filters:', filters);
+      const response = await apiUtils.get<any>(
         this.baseUrl,
         filters
       );
+      console.log('Raw API response:', response);
+
+      // Handle backend response format: {tests: [...]} instead of {data: [...]}
+      const formattedResponse: PaginatedResponse<LabTest> = {
+        data: response.tests || response.data || [],
+        total: response.total || 0,
+        page: response.page || 1,
+        per_page: response.per_page || 20,
+        total_pages: response.total_pages || 1
+      };
 
       // Cache public data
       if (!filters.is_active) {
-        apiCache.set(cacheKey, response, 600000); // 10 minutes
+        apiCache.set(cacheKey, formattedResponse, 600000); // 10 minutes
       }
 
-      return response;
+      return formattedResponse;
     } catch (error) {
       console.error('Failed to fetch lab tests:', error);
       throw error;
@@ -538,6 +550,149 @@ class LabTestsService {
       console.error('Failed to compare tests:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get user's bookings
+   */
+  async getUserBookings(): Promise<PaginatedResponse<Booking>> {
+    try {
+      const cacheKey = `${this.cachePrefix}user_bookings`;
+      
+      // Check cache first
+      const cached = apiCache.get<PaginatedResponse<Booking>>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      console.log('Fetching user bookings...');
+      
+      // Try multiple possible endpoints for bookings
+      const possibleEndpoints = [
+        '/bookings/bookings/my',  // Correct endpoint based on user feedback
+        '/bookings/my',
+        '/bookings/',
+        '/user/bookings',
+        '/users/me/bookings',
+        '/appointments/my',
+        '/appointments/'
+      ];
+
+      let response = null;
+      let usedEndpoint = '';
+
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          response = await apiUtils.get<any>(endpoint);
+          usedEndpoint = endpoint;
+          console.log(`✅ Success with endpoint: ${endpoint}`);
+          break;
+        } catch (endpointError: any) {
+          console.log(`❌ Failed endpoint ${endpoint}:`, endpointError?.response?.status || endpointError.message);
+          continue;
+        }
+      }
+
+      if (!response) {
+        throw new Error('No available bookings endpoint found. The backend may not have implemented the bookings retrieval API yet.');
+      }
+
+      console.log(`User bookings response from ${usedEndpoint}:`, response);
+
+      // Handle backend response format - check different possible structures
+      let bookingsData = [];
+      if (Array.isArray(response)) {
+        // Direct array response
+        bookingsData = response;
+      } else if (response.bookings) {
+        // {bookings: [...]}
+        bookingsData = response.bookings;
+      } else if (response.data) {
+        // {data: [...]}
+        bookingsData = response.data;
+      } else if (response.results) {
+        // {results: [...]}
+        bookingsData = response.results;
+      }
+
+      console.log('Extracted bookings data:', bookingsData);
+
+      const formattedResponse: PaginatedResponse<Booking> = {
+        data: bookingsData,
+        total: response.total || response.count || bookingsData.length,
+        page: response.page || 1,
+        per_page: response.per_page || response.limit || 20,
+        total_pages: response.total_pages || Math.ceil((response.total || bookingsData.length) / (response.per_page || 20))
+      };
+
+      // Cache for shorter period due to dynamic nature
+      apiCache.set(cacheKey, formattedResponse, 300000); // 5 minutes
+
+      return formattedResponse;
+    } catch (error) {
+      console.error('Failed to fetch user bookings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel a booking
+   */
+  async cancelBooking(bookingId: string): Promise<ApiResponse<{ cancelled: boolean }>> {
+    try {
+      console.log('Cancelling booking:', bookingId);
+      
+      const response = await apiUtils.post<ApiResponse<any>>(
+        `/bookings/bookings/${bookingId}/cancel`,
+        {}
+      );
+
+      // Clear related cache
+      this.clearBookingsCache();
+      
+      return response;
+    } catch (error) {
+      console.error(`Failed to cancel booking ${bookingId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get booking details by ID
+   */
+  async getBooking(bookingId: string): Promise<Booking> {
+    try {
+      const cacheKey = `${this.cachePrefix}booking_${bookingId}`;
+      
+      // Check cache first
+      const cached = apiCache.get<Booking>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      const response = await apiUtils.get<Booking>(`/bookings/bookings/${bookingId}`);
+      
+      // Cache booking details
+      apiCache.set(cacheKey, response, 600000); // 10 minutes
+      
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch booking ${bookingId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear bookings cache
+   */
+  private clearBookingsCache(): void {
+    const keys = Array.from(apiCache.cache.keys());
+    keys.forEach(key => {
+      if (key.includes('user_bookings') || key.includes('booking_')) {
+        apiCache.clear(key);
+      }
+    });
   }
 }
 

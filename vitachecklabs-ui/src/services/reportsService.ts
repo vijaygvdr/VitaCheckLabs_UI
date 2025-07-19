@@ -23,7 +23,7 @@ import {
 
 // Reports service class
 class ReportsService {
-  private readonly baseUrl = '/reports';
+  private readonly baseUrl = '/reports/';
   private readonly cachePrefix = 'reports_';
 
   /**
@@ -40,15 +40,29 @@ class ReportsService {
         return cached;
       }
 
-      const response = await apiUtils.get<PaginatedResponse<Report>>(
+      console.log('Making reports API call to:', this.baseUrl, 'with filters:', filters);
+      console.log('Full API URL will be:', `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1${this.baseUrl}`);
+      console.log('Auth token present:', !!localStorage.getItem('vitacheck_access_token'));
+      
+      const response = await apiUtils.get<any>(
         this.baseUrl,
         filters
       );
+      console.log('Raw reports API response:', response);
+
+      // Handle backend response format: {reports: [...]} instead of {data: [...]}
+      const formattedResponse: PaginatedResponse<Report> = {
+        data: response.reports || response.data || [],
+        total: response.total || 0,
+        page: response.page || 1,
+        per_page: response.per_page || 20,
+        total_pages: response.total_pages || 1
+      };
 
       // Cache for shorter period due to dynamic nature of reports
-      apiCache.set(cacheKey, response, 300000); // 5 minutes
+      apiCache.set(cacheKey, formattedResponse, 300000); // 5 minutes
 
-      return response;
+      return formattedResponse;
     } catch (error) {
       console.error('Failed to fetch reports:', error);
       throw error;
@@ -192,15 +206,11 @@ class ReportsService {
    */
   async downloadReportFile(reportId: string, filename?: string): Promise<void> {
     try {
-      const downloadInfo = await this.downloadReport(reportId);
-      
-      // Use the presigned URL to download the file
-      const link = document.createElement('a');
-      link.href = downloadInfo.download_url;
-      link.download = filename || `report_${reportId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Download file directly through the API with authentication
+      await apiUtils.downloadFile(
+        `${this.baseUrl}/${reportId}/download`,
+        filename || `report_${reportId}.pdf`
+      );
     } catch (error) {
       console.error(`Failed to download report file ${reportId}:`, error);
       throw error;
