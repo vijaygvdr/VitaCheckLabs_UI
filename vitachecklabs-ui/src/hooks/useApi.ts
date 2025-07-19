@@ -1,7 +1,8 @@
 // Custom hooks for API state management with error handling and loading states
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ApiError, errorHandler } from '../services/api';
+import { ApiError } from '../types/api';
+import { errorHandler } from '../services/api';
 
 // Generic API state interface
 export interface ApiState<T> {

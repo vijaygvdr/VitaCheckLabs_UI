@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,34 +13,16 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormControlLabel,
-  Checkbox,
-  Card,
-  CardContent,
-  Stepper,
-  Step,
-  StepLabel,
   Alert,
   CircularProgress,
-  Chip,
-  Divider,
   IconButton
 } from '@mui/material';
 import {
-  Close,
-  CalendarToday,
-  Home,
-  LocationOn,
-  Person,
-  Payment,
-  CheckCircle,
-  Info,
-  Schedule
+  Close
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LabTest, LabTestBooking } from '../types/api';
 import { labTestsService } from '../services/labTestsService';
 
@@ -50,111 +32,54 @@ interface LabTestBookingProps {
   test: LabTest | null;
 }
 
-const steps = [
-  'Test Details',
-  'Booking Information',
-  'Confirmation'
-];
-
-const timeSlots = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-  '17:00', '17:30', '18:00'
-];
-
 const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({ 
   open, 
   onClose, 
   test 
 }) => {
-  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [bookingId, setBookingId] = useState<string | null>(null);
   
-  // Form state
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string>('');
-  const [isHomeCollection, setIsHomeCollection] = useState(false);
-  const [collectionAddress, setCollectionAddress] = useState('');
-  const [patientAge, setPatientAge] = useState<number | ''>('');
+  // Form state based on mockup
   const [patientName, setPatientName] = useState('');
-  const [patientPhone, setPatientPhone] = useState('');
-  const [patientEmail, setPatientEmail] = useState('');
-  const [notes, setNotes] = useState('');
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [patientAge, setPatientAge] = useState<number | ''>('');
+  const [patientGender, setPatientGender] = useState('');
+  const [homeCollectionDate, setHomeCollectionDate] = useState<Date | null>(new Date());
+  const [address, setAddress] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [specialInstructions, setSpecialInstructions] = useState('');
 
-  useEffect(() => {
-    if (selectedDate) {
-      checkAvailability();
+  const validateForm = () => {
+    if (!patientName.trim()) {
+      setError('Patient name is required');
+      return false;
     }
-  }, [selectedDate, test?.id]);
-
-  const checkAvailability = async () => {
-    if (!test?.id || !selectedDate) return;
-    
-    try {
-      setCheckingAvailability(true);
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const availability = await labTestsService.checkTestAvailability(test.id, dateStr);
-      setAvailableSlots(availability.available_slots || timeSlots);
-    } catch (err) {
-      console.error('Error checking availability:', err);
-      setAvailableSlots(timeSlots); // Fallback to all slots
-    } finally {
-      setCheckingAvailability(false);
+    if (!patientAge || patientAge <= 0 || patientAge > 120) {
+      setError('Valid patient age (1-120) is required');
+      return false;
     }
-  };
-
-  const handleNext = () => {
-    if (activeStep === 1 && !validateBookingForm()) {
-      return;
+    if (!patientGender) {
+      setError('Patient gender is required');
+      return false;
     }
-    setActiveStep((prevStep) => prevStep + 1);
-  };
-
-  const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
-  };
-
-  const handleReset = () => {
-    setActiveStep(0);
-    setSelectedDate(null);
-    setSelectedTime('');
-    setIsHomeCollection(false);
-    setCollectionAddress('');
-    setPatientAge('');
-    setPatientName('');
-    setPatientPhone('');
-    setPatientEmail('');
-    setNotes('');
-    setError(null);
-    setSuccess(false);
-    setBookingId(null);
-  };
-
-  const validateBookingForm = () => {
-    if (!selectedDate || !selectedTime || !patientAge || !patientName || !patientPhone) {
-      setError('Please fill in all required fields');
+    if (!homeCollectionDate) {
+      setError('Appointment date is required');
+      return false;
+    }
+    if (!address.trim()) {
+      setError('Address is required for home collection');
+      return false;
+    }
+    if (!phoneNumber.trim()) {
+      setError('Phone number is required');
       return false;
     }
     
-    if (isHomeCollection && !collectionAddress) {
-      setError('Please provide collection address for home collection');
-      return false;
-    }
-    
-    const age = Number(patientAge);
-    if (test?.minimum_age && age < test.minimum_age) {
-      setError(`Minimum age requirement: ${test.minimum_age} years`);
-      return false;
-    }
-    
-    if (test?.maximum_age && age > test.maximum_age) {
-      setError(`Maximum age requirement: ${test.maximum_age} years`);
+    // Validate phone number format (basic validation)
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/\s+/g, ''))) {
+      setError('Please enter a valid 10-digit phone number');
       return false;
     }
     
@@ -162,32 +87,57 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
     return true;
   };
 
+  const handleReset = () => {
+    setPatientName('');
+    setPatientAge('');
+    setPatientGender('');
+    setHomeCollectionDate(new Date());
+    setAddress('');
+    setPhoneNumber('');
+    setSpecialInstructions('');
+    setError(null);
+    setSuccess(false);
+  };
+
   const handleBooking = async () => {
-    if (!test || !validateBookingForm()) return;
+    if (!test || !validateForm()) return;
 
     try {
       setLoading(true);
       setError(null);
 
+      // Create appointment datetime by combining date and default time
+      const appointmentDateTime = new Date(homeCollectionDate!);
+      appointmentDateTime.setHours(9, 0, 0, 0); // Set to 9:00 AM
+
       const bookingData: LabTestBooking = {
-        preferred_date: selectedDate!.toISOString().split('T')[0],
-        preferred_time: selectedTime,
-        is_home_collection: isHomeCollection,
-        collection_address: isHomeCollection ? collectionAddress : undefined,
+        test_id: Number(test.id),
+        patient_name: patientName,
         patient_age: Number(patientAge),
-        notes: notes || undefined
+        patient_gender: patientGender,
+        appointment_date: appointmentDateTime.toISOString(),
+        home_collection: true, // Always home collection based on mockup
+        address: address,
+        phone_number: phoneNumber,
+        special_instructions: specialInstructions || undefined
       };
+
+      console.log('Booking test:', test.id, 'with data:', bookingData);
 
       const response = await labTestsService.bookLabTest(test.id, bookingData);
       
-      if (response.success) {
-        setSuccess(true);
-        setBookingId(response.data.booking_id);
-        setActiveStep(2);
-      } else {
-        setError(response.message || 'Failed to book test');
-      }
+      console.log('Booking response:', response);
+
+      // If we get here without throwing an error, the booking was successful (201 status)
+      // The response contains the booking data directly from the backend
+      console.log('Booking successful! Response:', response);
+      setSuccess(true);
+      // Show success message for 2 seconds then close
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
     } catch (err: any) {
+      console.error('Booking error:', err);
       setError(err.message || 'Failed to book test. Please try again.');
     } finally {
       setLoading(false);
@@ -199,321 +149,25 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
     onClose();
   };
 
-  const formatPrice = (price: number) => `$${price.toFixed(2)}`;
-
-  const getStepContent = (step: number) => {
-    switch (step) {
-      case 0:
-        return (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Test Details
-            </Typography>
-            {test && (
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    {test.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {test.description}
-                  </Typography>
-                  
-                  <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid item xs={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Category
-                      </Typography>
-                      <Typography variant="body1">
-                        {test.category.replace(/_/g, ' ')}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Sample Type
-                      </Typography>
-                      <Typography variant="body1">
-                        {test.sample_type}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Price
-                      </Typography>
-                      <Typography variant="h6" color="primary.main">
-                        {formatPrice(test.price)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Report Delivery
-                      </Typography>
-                      <Typography variant="body1">
-                        {test.report_delivery_hours ? `${test.report_delivery_hours} hours` : 'Standard'}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {test.is_home_collection_available && (
-                      <Chip 
-                        label="Home Collection Available" 
-                        icon={<Home />}
-                        color="success"
-                        size="small"
-                      />
-                    )}
-                    {test.minimum_age && (
-                      <Chip 
-                        label={`Min Age: ${test.minimum_age}`}
-                        size="small"
-                      />
-                    )}
-                    {test.maximum_age && (
-                      <Chip 
-                        label={`Max Age: ${test.maximum_age}`}
-                        size="small"
-                      />
-                    )}
-                  </Box>
-
-                  {test.requirements && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Requirements
-                      </Typography>
-                      <Typography variant="body2">
-                        {test.requirements}
-                      </Typography>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </Box>
-        );
-
-      case 1:
-        return (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Booking Information
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DatePicker
-                    label="Preferred Date"
-                    value={selectedDate}
-                    onChange={setSelectedDate}
-                    minDate={new Date()}
-                    maxDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 days from now
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        required: true
-                      }
-                    }}
-                  />
-                </LocalizationProvider>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Preferred Time</InputLabel>
-                  <Select
-                    value={selectedTime}
-                    onChange={(e) => setSelectedTime(e.target.value)}
-                    label="Preferred Time"
-                    disabled={!selectedDate || checkingAvailability}
-                  >
-                    {availableSlots.map((slot) => (
-                      <MenuItem key={slot} value={slot}>
-                        {slot}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                {checkingAvailability && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                    <CircularProgress size={16} sx={{ mr: 1 }} />
-                    <Typography variant="caption">Checking availability...</Typography>
-                  </Box>
-                )}
-              </Grid>
-
-              <Grid item xs={12}>
-                <Divider />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Patient Name"
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Patient Age"
-                  type="number"
-                  value={patientAge}
-                  onChange={(e) => setPatientAge(e.target.value ? Number(e.target.value) : '')}
-                  inputProps={{ min: 1, max: 120 }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Phone Number"
-                  value={patientPhone}
-                  onChange={(e) => setPatientPhone(e.target.value)}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Email Address"
-                  type="email"
-                  value={patientEmail}
-                  onChange={(e) => setPatientEmail(e.target.value)}
-                />
-              </Grid>
-
-              {test?.is_home_collection_available && (
-                <>
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={isHomeCollection}
-                          onChange={(e) => setIsHomeCollection(e.target.checked)}
-                        />
-                      }
-                      label="Home Collection"
-                    />
-                  </Grid>
-                  
-                  {isHomeCollection && (
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        required
-                        multiline
-                        rows={3}
-                        label="Collection Address"
-                        value={collectionAddress}
-                        onChange={(e) => setCollectionAddress(e.target.value)}
-                        placeholder="Please provide complete address including landmark"
-                      />
-                    </Grid>
-                  )}
-                </>
-              )}
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={2}
-                  label="Additional Notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any special instructions or concerns..."
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        );
-
-      case 2:
-        return (
-          <Box sx={{ textAlign: 'center' }}>
-            {success ? (
-              <>
-                <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-                <Typography variant="h5" gutterBottom>
-                  Booking Confirmed!
-                </Typography>
-                <Typography variant="body1" color="text.secondary" paragraph>
-                  Your lab test has been successfully booked.
-                </Typography>
-                
-                {bookingId && (
-                  <Card variant="outlined" sx={{ mt: 3, textAlign: 'left' }}>
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Booking Details
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Booking ID
-                          </Typography>
-                          <Typography variant="body1" fontWeight="bold">
-                            {bookingId}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Test
-                          </Typography>
-                          <Typography variant="body1">
-                            {test?.name}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Date & Time
-                          </Typography>
-                          <Typography variant="body1">
-                            {selectedDate?.toLocaleDateString()} at {selectedTime}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Collection Type
-                          </Typography>
-                          <Typography variant="body1">
-                            {isHomeCollection ? 'Home Collection' : 'Lab Visit'}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={12}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Patient
-                          </Typography>
-                          <Typography variant="body1">
-                            {patientName}, {patientAge} years
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                )}
-                
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  A confirmation email has been sent to your registered email address.
-                </Alert>
-              </>
-            ) : (
-              <CircularProgress size={64} />
-            )}
-          </Box>
-        );
-
-      default:
-        return 'Unknown step';
-    }
-  };
+  if (success) {
+    return (
+      <Dialog 
+        open={open} 
+        onClose={handleClose} 
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogContent sx={{ textAlign: 'center', py: 4 }}>
+          <Typography variant="h5" color="success.main" gutterBottom>
+            ✅ Booking Confirmed!
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Your lab test appointment has been successfully booked.
+          </Typography>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog 
@@ -522,26 +176,89 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
       maxWidth="md" 
       fullWidth
       PaperProps={{
-        sx: { minHeight: '70vh' }
+        sx: { 
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+          minHeight: '75vh'
+        }
       }}
     >
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5">
-          Book Lab Test
-        </Typography>
-        <IconButton onClick={handleClose}>
+      {/* Header */}
+      <Box sx={{ 
+        backgroundColor: '#f8f9fa', 
+        borderBottom: '1px solid #e5e7eb',
+        p: 3,
+        display: 'flex',
+        alignItems: 'center',
+        position: 'relative'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box
+            component="span"
+            sx={{
+              width: 24,
+              height: 24,
+              backgroundColor: '#3b82f6',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mr: 2,
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: 'bold'
+            }}
+          >
+            +
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1f2937' }}>
+            VitaCheckLabs
+          </Typography>
+        </Box>
+        
+        <IconButton
+          onClick={handleClose}
+          sx={{
+            position: 'absolute',
+            right: 16,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: '#6b7280'
+          }}
+        >
           <Close />
         </IconButton>
-      </DialogTitle>
-      
-      <DialogContent>
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      </Box>
+
+      <DialogContent sx={{ p: 4, pb: 2 }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 'bold',
+          color: '#1f2937',
+          mb: 2,
+          textAlign: 'center'
+        }}>
+          Book Lab Test
+        </Typography>
+        
+        {test && (
+          <Box sx={{ 
+            backgroundColor: '#f0f9ff',
+            borderRadius: '8px',
+            p: 3,
+            mb: 4,
+            textAlign: 'center'
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1f2937', mb: 1 }}>
+              {test.name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {test.description}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#3b82f6' }}>
+              ₹{test.price}
+            </Typography>
+          </Box>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -549,43 +266,290 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
           </Alert>
         )}
 
-        {getStepContent(activeStep)}
+        <Box sx={{ width: '100%', maxWidth: '650px', mx: 'auto' }}>
+          <Grid container spacing={2.5}>
+            {/* Row 1: Patient Name and Age */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Patient Name"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                required
+                placeholder="Enter patient's full name"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    height: '56px',
+                    '&:hover': {
+                      backgroundColor: '#f1f3f4'
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff'
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontWeight: '500'
+                  }
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Patient Age"
+                type="number"
+                value={patientAge}
+                onChange={(e) => setPatientAge(e.target.value ? Number(e.target.value) : '')}
+                required
+                placeholder="Age in years"
+                inputProps={{ min: 1, max: 120 }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    height: '56px',
+                    '&:hover': {
+                      backgroundColor: '#f1f3f4'
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff'
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontWeight: '500'
+                  }
+                }}
+              />
+            </Grid>
+
+            {/* Row 2: Gender and Phone Number */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel sx={{ fontWeight: '500' }}>Patient Gender</InputLabel>
+                <Select
+                  value={patientGender}
+                  onChange={(e) => setPatientGender(e.target.value)}
+                  label="Patient Gender"
+                  sx={{
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    height: '56px',
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      py: 0
+                    },
+                    '&:hover': {
+                      backgroundColor: '#f1f3f4'
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff'
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#d1d5db'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#9ca3af'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#3b82f6',
+                      borderWidth: '2px'
+                    }
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        mt: 1
+                      }
+                    }
+                  }}
+                >
+                  <MenuItem value="male" sx={{ py: 1.5 }}>Male</MenuItem>
+                  <MenuItem value="female" sx={{ py: 1.5 }}>Female</MenuItem>
+                  <MenuItem value="other" sx={{ py: 1.5 }}>Other</MenuItem>
+                  <MenuItem value="prefer_not_to_say" sx={{ py: 1.5 }}>Prefer not to say</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Phone Number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                required
+                placeholder="Enter 10-digit mobile number"
+                type="tel"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    height: '56px',
+                    '&:hover': {
+                      backgroundColor: '#f1f3f4'
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff'
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontWeight: '500'
+                  }
+                }}
+              />
+            </Grid>
+
+            {/* Row 3: Home Collection Date and Address (first part) */}
+            <Grid item xs={12} sm={6}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  label="Home Collection Date"
+                  value={homeCollectionDate}
+                  onChange={setHomeCollectionDate}
+                  minDate={new Date()}
+                  maxDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      required: true,
+                      placeholder: "Select appointment date",
+                      sx: {
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '56px',
+                          '&:hover': {
+                            backgroundColor: '#f1f3f4'
+                          },
+                          '&.Mui-focused': {
+                            backgroundColor: '#ffffff'
+                          }
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontWeight: '500'
+                        }
+                      }
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Street Address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+                placeholder="Enter street address and house number"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    height: '56px',
+                    '&:hover': {
+                      backgroundColor: '#f1f3f4'
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff'
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontWeight: '500'
+                  }
+                }}
+              />
+            </Grid>
+
+            {/* Row 4: Special Instructions (two columns to fill the space) */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Special Instructions (Optional)"
+                value={specialInstructions}
+                onChange={(e) => setSpecialInstructions(e.target.value)}
+                multiline
+                rows={3}
+                placeholder="Any special requirements, medical conditions, or specific instructions for the collection..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      backgroundColor: '#f1f3f4'
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff'
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontWeight: '500'
+                  }
+                }}
+              />
+            </Grid>
+          </Grid>
+        </Box>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3 }}>
-        {activeStep === 0 && (
-          <Button onClick={handleClose}>
-            Cancel
-          </Button>
-        )}
-        
-        {activeStep > 0 && activeStep < 2 && (
-          <Button onClick={handleBack}>
-            Back
-          </Button>
-        )}
-        
-        {activeStep === 0 && (
-          <Button variant="contained" onClick={handleNext}>
-            Next
-          </Button>
-        )}
-        
-        {activeStep === 1 && (
-          <Button 
-            variant="contained" 
-            onClick={handleBooking}
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Book Test'}
-          </Button>
-        )}
-        
-        {activeStep === 2 && success && (
-          <Button variant="contained" onClick={handleClose}>
-            Done
-          </Button>
-        )}
+      <DialogActions sx={{ p: 4, pt: 3, justifyContent: 'center' }}>
+        <Button
+          variant="outlined"
+          onClick={handleClose}
+          sx={{
+            borderColor: '#d1d5db',
+            color: '#6b7280',
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: '600',
+            fontSize: '16px',
+            px: 4,
+            py: 1.5,
+            mr: 2,
+            '&:hover': {
+              borderColor: '#9ca3af',
+              backgroundColor: '#f9fafb',
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleBooking}
+          disabled={loading}
+          sx={{
+            backgroundColor: '#3b82f6',
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: '600',
+            fontSize: '16px',
+            px: 6,
+            py: 1.5,
+            '&:hover': {
+              backgroundColor: '#2563eb',
+            },
+            '&:disabled': {
+              backgroundColor: '#9ca3af',
+            }
+          }}
+        >
+          {loading ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+              Booking...
+            </>
+          ) : (
+            'Book Appointment'
+          )}
+        </Button>
       </DialogActions>
     </Dialog>
   );

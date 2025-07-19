@@ -392,7 +392,7 @@ export const PERMISSION_GROUPS = {
 export const RBACDebugger: React.FC = () => {
   const { state: authState, hasRole, hasPermission } = useAuth();
 
-  if (process.env.NODE_ENV !== 'development') {
+  if (import.meta.env.MODE !== 'development') {
     return null;
   }
 

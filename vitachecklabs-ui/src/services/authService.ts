@@ -46,18 +46,27 @@ class AuthService {
   async login(credentials: UserLogin): Promise<AuthResponse> {
     try {
       const response = await retryRequest(
-        () => apiUtils.post<AuthResponse>(`${this.baseUrl}/login`, credentials),
+        () => apiUtils.post<any>(`${this.baseUrl}/login`, credentials),
         2, // Max 2 retries for login
         1000 // 1 second delay
       );
 
+      // Transform backend response to expected format
+      const authResponse: AuthResponse = {
+        user: response.user,
+        access_token: response.tokens.access_token,
+        refresh_token: response.tokens.refresh_token,
+        token_type: response.tokens.token_type,
+        expires_in: response.tokens.expires_in
+      };
+
       // Store tokens after successful login
-      this.storeTokens(response);
+      this.storeTokens(authResponse);
       
       // Cache user data
-      apiCache.set('current_user', response.user, 3600000); // 1 hour
+      apiCache.set('current_user', authResponse.user, 3600000); // 1 hour
       
-      return response;
+      return authResponse;
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
