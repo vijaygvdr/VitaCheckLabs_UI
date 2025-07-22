@@ -28,10 +28,10 @@ import { errorHandler } from '../../services/api';
 
 // Form validation schema
 const loginSchema = yup.object({
-  username: yup
+  email: yup
     .string()
-    .required('Username is required')
-    .min(3, 'Username must be at least 3 characters'),
+    .required('Email is required')
+    .email('Please enter a valid email address'),
   password: yup
     .string()
     .required('Password is required')
@@ -68,7 +68,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
   } = useForm<LoginFormData>({
     resolver: yupResolver(loginSchema),
     defaultValues: {
-      username: '',
+      email: '',
       password: '',
     },
   });
@@ -89,11 +89,13 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const onSubmit = async (data: LoginFormData) => {
     try {
       const loginData: UserLogin = {
-        username: data.username,
+        email: data.email,
         password: data.password,
       };
 
+      console.log('Attempting login with:', loginData);
       const user = await login(loginData);
+      console.log('Login successful, user:', user);
       
       // Reset form
       reset();
@@ -103,19 +105,20 @@ const LoginPage: React.FC<LoginPageProps> = ({
         onLoginSuccess(user);
       }
 
+      console.log('Navigating to /home');
       // Navigate to home page after successful login
       navigate('/home', { replace: true });
       
     } catch (error: any) {
       // Handle specific error types
       if (errorHandler.isAuthError(error)) {
-        setError('username', { 
+        setError('email', { 
           type: 'manual', 
-          message: 'Invalid username or password' 
+          message: 'Invalid email or password' 
         });
         setError('password', { 
           type: 'manual', 
-          message: 'Invalid username or password' 
+          message: 'Invalid email or password' 
         });
       } else if (errorHandler.isValidationError(error)) {
         const validationErrors = errorHandler.getValidationErrors(error);
@@ -284,21 +287,21 @@ const LoginPage: React.FC<LoginPageProps> = ({
 
               {/* Login Form */}
               <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-                {/* Username Field */}
+                {/* Email Field */}
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Username
+                  Email
                 </Typography>
                 <Controller
-                  name="username"
+                  name="email"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       fullWidth
-                      placeholder="Enter your username"
+                      placeholder="Enter your email"
                       variant="outlined"
-                      error={!!errors.username}
-                      helperText={errors.username?.message}
+                      error={!!errors.email}
+                      helperText={errors.email?.message}
                       disabled={isSubmitting}
                       sx={{ 
                         mb: 3,
@@ -314,7 +317,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
                           </InputAdornment>
                         ),
                       }}
-                      autoComplete="username"
+                      autoComplete="email"
                       autoFocus
                     />
                   )}

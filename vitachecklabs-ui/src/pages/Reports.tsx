@@ -24,6 +24,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { reportsService } from '../services/reportsService';
+import { apiUtils } from '../services/api';
 import { Report } from '../types/api';
 
 const Reports: React.FC = () => {
@@ -110,7 +111,47 @@ const Reports: React.FC = () => {
   const handleDownloadReport = async (report: Report) => {
     try {
       console.log('Downloading report:', report.id);
-      await reportsService.downloadReportFile(report.id);
+      console.log('Download URL from report:', report.download_url);
+      
+      if (report.download_url) {
+        // Use the download_url provided by the backend
+        // Remove /api/v1 prefix since apiUtils.downloadFile will add the base URL with /api/v1
+        const cleanUrl = report.download_url.replace('/api/v1', '');
+        
+        try {
+          // First get the signed URL from the API
+          const response = await apiUtils.get<{
+            success: boolean;
+            download_url: string;
+            filename: string;
+            file_size: number;
+            content_type: string;
+            expires_in: number;
+          }>(cleanUrl);
+          
+          if (response.success && response.download_url) {
+            // Create a temporary link to download from the S3 URL
+            const link = document.createElement('a');
+            link.href = response.download_url;
+            link.download = response.filename || `report_${report.id || report.report_id}.pdf`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else {
+            throw new Error('Invalid download response');
+          }
+        } catch (apiError) {
+          // Fallback to direct download attempt
+          await apiUtils.downloadFile(
+            cleanUrl,
+            `${report.file_original_name || `report_${report.id || report.report_id}.pdf`}`
+          );
+        }
+      } else {
+        // Fallback to constructed URL
+        await reportsService.downloadReportFile(report.id || report.report_id || '');
+      }
     } catch (err: any) {
       console.error('Error downloading report:', err);
       setError('Failed to download report. Please try again.');

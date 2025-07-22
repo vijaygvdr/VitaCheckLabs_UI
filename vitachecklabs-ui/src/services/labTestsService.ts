@@ -46,14 +46,40 @@ class LabTestsService {
         filters
       );
       console.log('Raw API response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', Object.keys(response || {}));
 
-      // Handle backend response format: {tests: [...]} instead of {data: [...]}
+      // Handle backend response format and map missing fields
+      // The API returns a direct array, not wrapped in an object
+      const rawTests = Array.isArray(response) ? response : (response.tests || response.data || []);
+      console.log('Raw tests extracted:', rawTests);
+      console.log('Raw tests length:', rawTests?.length);
+      console.log('First test sample:', rawTests?.[0]);
+      
+      // Map raw test data to include required fields  
+      const mappedTests = rawTests.map((test: any, index: number) => {
+        console.log(`Mapping test ${index}:`, test);
+        const mapped = {
+          ...test,
+          // Convert price from string to number
+          price: parseFloat(test.price) || 0,
+          // Ensure required fields are present
+          id: test.id || test.test_id || test.uuid || String(Date.now() + index),
+          display_name: test.display_name || test.name || test.title || 'Unknown Test',
+          price_formatted: test.price_formatted || test.formatted_price || `₹${parseFloat(test.price) || 0}`
+        };
+        console.log(`Mapped test ${index}:`, mapped);
+        return mapped;
+      });
+      
+      console.log('Final mapped tests:', mappedTests);
+      
       const formattedResponse: PaginatedResponse<LabTest> = {
-        data: response.tests || response.data || [],
-        total: response.total || 0,
-        page: response.page || 1,
-        per_page: response.per_page || 20,
-        total_pages: response.total_pages || 1
+        data: mappedTests,
+        total: Array.isArray(response) ? response.length : (response.total || mappedTests.length),
+        page: Array.isArray(response) ? 1 : (response.page || 1),
+        per_page: Array.isArray(response) ? mappedTests.length : (response.per_page || 20),
+        total_pages: Array.isArray(response) ? 1 : (response.total_pages || 1)
       };
 
       // Cache public data
@@ -195,7 +221,7 @@ class LabTestsService {
       }
 
       const response = await retryRequest(
-        () => apiUtils.post<ApiResponse<any>>(`${this.baseUrl}/${testId}/book`, bookingData),
+        () => apiUtils.post<ApiResponse<any>>(`/bookings/${testId}`, bookingData),
         1, // Single retry for booking
         2000 // 2 second delay
       );
@@ -644,7 +670,7 @@ class LabTestsService {
       console.log('Cancelling booking:', bookingId);
       
       const response = await apiUtils.post<ApiResponse<any>>(
-        `/bookings/bookings/${bookingId}/cancel`,
+        `/bookings/${bookingId}/cancel`,
         {}
       );
 
@@ -671,7 +697,7 @@ class LabTestsService {
         return cached;
       }
 
-      const response = await apiUtils.get<Booking>(`/bookings/bookings/${bookingId}`);
+      const response = await apiUtils.get<Booking>(`/bookings/${bookingId}`);
       
       // Cache booking details
       apiCache.set(cacheKey, response, 600000); // 10 minutes

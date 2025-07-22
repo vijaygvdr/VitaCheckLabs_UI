@@ -55,7 +55,7 @@ export interface UserRegister {
 }
 
 export interface UserLogin {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -80,6 +80,8 @@ export interface LabTest {
   requirements?: string;
   procedure?: string;
   price: number;
+  display_name?: string; // Backend validation expects this
+  price_formatted?: string; // Backend validation expects this
   is_active: boolean;
   is_home_collection_available: boolean;
   minimum_age?: number;
@@ -136,7 +138,7 @@ export interface LabTestUpdate extends Partial<LabTestCreate> {
 }
 
 export interface LabTestBooking {
-  test_id: number;
+  test_id: string | number; // Support both UUID strings and numeric IDs
   patient_name: string;
   patient_age: number;
   patient_gender: string;
@@ -184,7 +186,8 @@ export interface LabTestStats {
 
 // Report Types
 export interface Report {
-  id: string;
+  id?: string;
+  report_id?: string; // Backend uses this field name
   user_id: string;
   lab_test_id: string;
   report_number: string;
@@ -193,23 +196,36 @@ export interface Report {
   collected_at?: string;
   processed_at?: string;
   completed_at?: string;
+  tested_at?: string; // Additional field from backend
   collection_location?: string;
   results?: string;
   observations?: string;
   recommendations?: string;
+  notes?: string; // Additional field from backend
   file_path?: string;
   file_original_name?: string;
-  file_size?: number;
+  file_size?: number | string; // Backend returns as string
+  file_type?: string; // Additional field from backend
+  s3_file_key?: string; // Additional field from backend
+  download_url?: string; // Additional field from backend
+  has_file?: boolean; // Additional field from backend
   is_shared: boolean;
   shared_at?: string;
-  shared_with?: string[];
-  amount_charged?: number;
+  shared_with?: string[] | string; // Backend may return as string
+  amount_charged?: number | string; // Backend returns as string
   payment_status: PaymentStatus;
   payment_reference?: string;
   priority: ReportPriority;
+  is_verified?: boolean; // Additional field from backend
+  verified_by?: string; // Additional field from backend
+  verified_at?: string; // Additional field from backend
+  reviewed_at?: string; // Additional field from backend
+  delivered_at?: string; // Additional field from backend
+  sample_collected_by?: string; // Additional field from backend
+  collection_notes?: string; // Additional field from backend
   created_at: string;
   updated_at: string;
-  lab_test: LabTest;
+  lab_test?: LabTest; // Make optional since backend may not include it
 }
 
 export enum ReportStatus {

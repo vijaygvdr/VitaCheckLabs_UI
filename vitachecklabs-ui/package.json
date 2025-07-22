@@ -6,11 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:prod": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "aws:install": "../scripts/install_aws_cli.sh",
+    "aws:configure": "../scripts/configure_aws.sh",
+    "aws:test": "../scripts/test_aws_setup.sh",
+    "deploy:poc": "../deploy-poc.sh",
+    "deploy:prod": "../deploy.sh"
   },
   "dependencies": {
     "@emotion/react": "^11.13.5",

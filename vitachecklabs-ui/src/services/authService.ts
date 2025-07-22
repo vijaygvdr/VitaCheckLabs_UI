@@ -45,26 +45,51 @@ class AuthService {
    */
   async login(credentials: UserLogin): Promise<AuthResponse> {
     try {
+      console.log('AuthService: Sending login request with credentials:', credentials);
+      console.log('AuthService: Login URL:', `${this.baseUrl}/login`);
       const response = await retryRequest(
         () => apiUtils.post<any>(`${this.baseUrl}/login`, credentials),
         2, // Max 2 retries for login
         1000 // 1 second delay
       );
+      console.log('AuthService: Raw login response:', response);
+      console.log('AuthService: Response type:', typeof response);
+      console.log('AuthService: Response keys:', Object.keys(response));
+      if (response.tokens) {
+        console.log('AuthService: Tokens object keys:', Object.keys(response.tokens));
+      }
 
       // Transform backend response to expected format
+      // Handle the actual API response structure
       const authResponse: AuthResponse = {
-        user: response.user,
-        access_token: response.tokens.access_token,
-        refresh_token: response.tokens.refresh_token,
-        token_type: response.tokens.token_type,
-        expires_in: response.tokens.expires_in
+        user: {
+          id: response.user.user_id,
+          username: response.user.username,
+          email: response.user.email,
+          first_name: response.user.first_name,
+          last_name: response.user.last_name,
+          phone_number: undefined,
+          role: response.user.role,
+          is_active: response.user.is_active,
+          is_verified: response.user.is_verified,
+          created_at: new Date().toISOString(), // API doesn't provide this
+          updated_at: new Date().toISOString(), // API doesn't provide this
+          last_login: undefined
+        },
+        access_token: response.access_token,
+        refresh_token: response.refresh_token || '', // API doesn't provide refresh token
+        token_type: response.token_type || 'Bearer',
+        expires_in: response.expires_in || 3600 // Default to 1 hour if not provided
       };
+      console.log('AuthService: Transformed auth response:', authResponse);
 
       // Store tokens after successful login
       this.storeTokens(authResponse);
+      console.log('AuthService: Tokens stored successfully');
       
       // Cache user data
       apiCache.set('current_user', authResponse.user, 3600000); // 1 hour
+      console.log('AuthService: User data cached');
       
       return authResponse;
     } catch (error) {
@@ -96,10 +121,12 @@ class AuthService {
   async refreshToken(): Promise<AuthResponse> {
     const refreshToken = tokenManager.getRefreshToken();
     if (!refreshToken) {
+      console.log('AuthService: No refresh token available, skipping refresh');
       throw new Error('No refresh token available');
     }
 
     try {
+      console.log('AuthService: Attempting token refresh');
       const response = await apiUtils.post<AuthResponse>(
         `${this.baseUrl}/refresh`,
         { refresh_token: refreshToken }
@@ -107,6 +134,7 @@ class AuthService {
 
       // Store new tokens
       this.storeTokens(response);
+      console.log('AuthService: Token refresh successful');
       
       return response;
     } catch (error) {

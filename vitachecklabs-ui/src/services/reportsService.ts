@@ -49,14 +49,37 @@ class ReportsService {
         filters
       );
       console.log('Raw reports API response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', Object.keys(response || {}));
 
-      // Handle backend response format: {reports: [...]} instead of {data: [...]}
+      // Handle backend response format - API returns direct array
+      const rawReports = Array.isArray(response) ? response : (response.reports || response.data || []);
+      console.log('Raw reports extracted:', rawReports);
+      console.log('Raw reports length:', rawReports?.length);
+      console.log('First report sample:', rawReports?.[0]);
+      
+      // Map raw report data to include required fields
+      const mappedReports = rawReports.map((report: any, index: number) => {
+        console.log(`Mapping report ${index}:`, report);
+        const mapped = {
+          ...report,
+          // Ensure required fields are present
+          id: report.id || report.report_id || String(Date.now() + index),
+          // Convert amount from string to number if needed
+          amount_charged: report.amount_charged ? parseFloat(report.amount_charged) : 0
+        };
+        console.log(`Mapped report ${index}:`, mapped);
+        return mapped;
+      });
+      
+      console.log('Final mapped reports:', mappedReports);
+      
       const formattedResponse: PaginatedResponse<Report> = {
-        data: response.reports || response.data || [],
-        total: response.total || 0,
-        page: response.page || 1,
-        per_page: response.per_page || 20,
-        total_pages: response.total_pages || 1
+        data: mappedReports,
+        total: Array.isArray(response) ? response.length : (response.total || mappedReports.length),
+        page: Array.isArray(response) ? 1 : (response.page || 1),
+        per_page: Array.isArray(response) ? mappedReports.length : (response.per_page || 20),
+        total_pages: Array.isArray(response) ? 1 : (response.total_pages || 1)
       };
 
       // Cache for shorter period due to dynamic nature of reports
@@ -193,10 +216,14 @@ class ReportsService {
    */
   async downloadReport(reportId: string): Promise<ReportDownload> {
     try {
-      const response = await apiUtils.get<ReportDownload>(`${this.baseUrl}/${reportId}/download`);
+      console.log('Attempting to download report:', reportId);
+      console.log('Auth token present:', !!localStorage.getItem('vitacheck_access_token'));
+      
+      const response = await apiUtils.get<ReportDownload>(`/reports/${reportId}/direct-download`);
       return response;
     } catch (error) {
       console.error(`Failed to get download link for report ${reportId}:`, error);
+      console.error('Download error details:', error);
       throw error;
     }
   }
@@ -208,7 +235,7 @@ class ReportsService {
     try {
       // Download file directly through the API with authentication
       await apiUtils.downloadFile(
-        `${this.baseUrl}/${reportId}/download`,
+        `/reports/${reportId}/direct-download`,
         filename || `report_${reportId}.pdf`
       );
     } catch (error) {
