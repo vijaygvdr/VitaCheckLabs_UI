@@ -67,8 +67,19 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
       setError('Appointment date is required');
       return false;
     }
-    if (!address.trim()) {
-      setError('Address is required for home collection');
+    
+    // Check if appointment date is not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const appointmentDate = new Date(homeCollectionDate);
+    appointmentDate.setHours(0, 0, 0, 0);
+    
+    if (appointmentDate < today) {
+      setError('Appointment date cannot be in the past');
+      return false;
+    }
+    if (!address.trim() || address.trim().length < 10) {
+      setError('Please provide a complete address for home collection (minimum 10 characters)');
       return false;
     }
     if (!phoneNumber.trim()) {
@@ -77,8 +88,8 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
     }
     
     // Validate phone number format (basic validation)
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phoneNumber.replace(/\s+/g, ''))) {
+    const cleanPhoneNumber = phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, '');
+    if (cleanPhoneNumber.length !== 10) {
       setError('Please enter a valid 10-digit phone number');
       return false;
     }
@@ -110,19 +121,27 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
       const appointmentDateTime = new Date(homeCollectionDate!);
       appointmentDateTime.setHours(9, 0, 0, 0); // Set to 9:00 AM
 
+      // Use test ID as string (UUID format)
+      if (!test.id) {
+        setError('Invalid test ID. Please try again.');
+        return;
+      }
+
       const bookingData: LabTestBooking = {
-        test_id: Number(test.id),
-        patient_name: patientName,
+        test_id: test.id,
+        patient_name: patientName.trim(),
         patient_age: Number(patientAge),
         patient_gender: patientGender,
         appointment_date: appointmentDateTime.toISOString(),
         home_collection: true, // Always home collection based on mockup
-        address: address,
-        phone_number: phoneNumber,
-        special_instructions: specialInstructions || undefined
+        address: address.trim(),
+        phone_number: phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, ''), // Clean phone number
+        special_instructions: specialInstructions ? specialInstructions.trim() : undefined
       };
 
       console.log('Booking test:', test.id, 'with data:', bookingData);
+      console.log('Appointment date ISO:', appointmentDateTime.toISOString());
+      console.log('Test ID used:', test.id);
 
       const response = await labTestsService.bookLabTest(test.id, bookingData);
       
@@ -138,7 +157,21 @@ const LabTestBookingComponent: React.FC<LabTestBookingProps> = ({
       }, 2000);
     } catch (err: any) {
       console.error('Booking error:', err);
-      setError(err.message || 'Failed to book test. Please try again.');
+      console.error('Error details:', err.detail || err.errors || err.response?.data);
+      
+      // Extract more detailed error message
+      let errorMessage = 'Failed to book test. Please try again.';
+      
+      if (err.detail && Array.isArray(err.detail) && err.detail.length > 0) {
+        errorMessage = err.detail[0];
+      } else if (err.errors && typeof err.errors === 'object') {
+        const firstError = Object.values(err.errors)[0];
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

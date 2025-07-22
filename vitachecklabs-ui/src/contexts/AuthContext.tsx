@@ -252,18 +252,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   // Login function
   const login = async (credentials: UserLogin): Promise<User> => {
+    console.log('AuthContext: Starting login process');
     dispatch({ type: 'AUTH_START' });
     try {
       const response: AuthResponse = await authService.login(credentials);
+      console.log('AuthContext: Login response received:', response);
       const permissions = await authService.getPermissions();
+      console.log('AuthContext: Permissions fetched:', permissions);
       
       dispatch({
         type: 'AUTH_SUCCESS',
         payload: { user: response.user, permissions },
       });
+      console.log('AuthContext: AUTH_SUCCESS dispatched');
       
       return response.user;
     } catch (error) {
+      console.error('AuthContext: Login failed:', error);
       dispatch({
         type: 'AUTH_FAILURE',
         payload: error as ApiError,

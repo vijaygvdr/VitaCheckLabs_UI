@@ -138,7 +138,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check authentication requirement
+  console.log('ProtectedRoute: Checking authentication', {
+    requireAuth,
+    isAuthenticated: authState.isAuthenticated,
+    isLoading: authState.isLoading,
+    user: authState.user
+  });
+  
   if (requireAuth && !authState.isAuthenticated) {
+    console.log('ProtectedRoute: User not authenticated, redirecting to login');
     return (
       <Navigate
         to={fallbackPath}

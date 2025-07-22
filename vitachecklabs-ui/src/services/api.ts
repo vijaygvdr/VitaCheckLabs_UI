@@ -4,7 +4,8 @@ import axios, {
   AxiosInstance, 
   AxiosRequestConfig, 
   AxiosResponse, 
-  AxiosError 
+  AxiosError,
+  InternalAxiosRequestConfig
 } from 'axios';
 import { ApiError, ApiResponse } from '../types/api';
 
@@ -66,7 +67,7 @@ export const apiClient = createAxiosInstance();
 
 // Request interceptor to add authorization header
 apiClient.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = tokenManager.getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -87,12 +88,13 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Handle 401 errors and token refresh
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (error.response?.status === 401 && originalRequest && !(originalRequest as any)._retry) {
+      (originalRequest as any)._retry = true;
 
       const refreshToken = tokenManager.getRefreshToken();
       if (refreshToken) {
         try {
+          console.log('API: Attempting token refresh due to 401 error');
           const response = await axios.post(`${API_BASE_URL}${API_VERSION}/auth/refresh`, {
             refresh_token: refreshToken,
           });
@@ -106,15 +108,17 @@ apiClient.interceptors.response.use(
           }
           return apiClient(originalRequest);
         } catch (refreshError) {
+          console.log('API: Token refresh failed, redirecting to login');
           // Refresh failed, redirect to login
           tokenManager.removeTokens();
-          window.location.href = '/login';
+          window.location.href = '/auth/login';
           return Promise.reject(refreshError);
         }
       } else {
+        console.log('API: No refresh token available, redirecting to login');
         // No refresh token, redirect to login
         tokenManager.removeTokens();
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       }
     }
 
