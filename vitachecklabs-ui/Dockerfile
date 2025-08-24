@@ -13,7 +13,7 @@ RUN npm ci
 COPY . .
 
 # Set environment variable for Vite build
-ENV VITE_API_BASE_URL=http://3.238.77.172:8000
+ENV VITE_API_BASE_URL=http://3.83.12.28:8000
 
 # Build the application (skip TypeScript checking for production build)
 RUN npm run build:prod
